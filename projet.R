@@ -17,18 +17,18 @@ nbDescripteurs = length(train_set)
 
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
-  for (j in i:nbDescripteurs){
-    if (i !=j){
-      res = lm(as.matrix(train_set[i]) ~ as.matrix(train_set[j]), data=train_set)
-      if (summary(res)$r.squared > 0.95 ){
-        if (!(i %in% listDescripteurs)){
-          listDescripteurs <- c(listDescripteurs, i)
+    for (j in (i+1):nbDescripteurs){
+      if (j < nbDescripteurs){
+        res = lm(as.matrix(train_set[i]) ~ as.matrix(train_set[j]), data=train_set)
+        if (summary(res)$r.squared > 0.95 ){
+          if (!(i %in% listDescripteurs)){
+            listDescripteurs <- c(listDescripteurs, i)
+          }
         }
-      }
-    }
-  }  
+    }  
+  }
 }
-
+## Avec une variable on arrive à supprimmer 9 variables
 ## Troisieme étape, on cherche les relations linéaire à 2 variables. On effectue comme
 ## l'étape précédente
 ### On modifie notre dataSet
@@ -37,9 +37,9 @@ test_set_iteration_1 = test_set[, -listDescripteurs]
 nbDescripteurs = length(train_set_iteration_1)
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
-  for (j in i:nbDescripteurs){
-    for (k in j:nbDescripteurs){
-      if (i!=j && i!=k && j!=k){
+  for (j in (i+1):nbDescripteurs){
+    for (k in (j+1):nbDescripteurs){
+      if (j < nbDescripteurs && k< nbDescripteurs){
         res = lm(as.matrix(train_set_iteration_1[i]) ~ as.matrix(train_set_iteration_1[j]) + as.matrix(train_set_iteration_1[k]), data=train_set_iteration_1)
         if (summary(res)$r.squared > 0.95 ){
           if (!i %in% listDescripteurs){
@@ -51,6 +51,8 @@ for (i in 2:nbDescripteurs){
     
   }  
 }
+
+#Avec deux variables, on arrive à supprimer 11 variables
 ## Troisieme étape, on cherche les relations linéaire à 3 variables. On effectue comme
 ## l'étape précédente
 ### On modifie notre dataSet
@@ -60,10 +62,10 @@ test_set_iteration_2 = test_set_iteration_1[, -listDescripteurs]
 nbDescripteurs = length(train_set_iteration_2)
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
-  for (j in i:nbDescripteurs){
-    for (k in j:nbDescripteurs){
-      for (l in k:nbDescripteurs){
-        if (i!=j && i!=k && i!=l && j!=k && j!=l && k!=l){
+  for (j in (i+1):nbDescripteurs){
+    for (k in (j+1):nbDescripteurs){
+      for (l in (k+1):nbDescripteurs){
+        if (j<nbDescripteurs && k<nbDescripteurs && l < nbDescripteurs){
           res = lm(as.matrix(train_set_iteration_2[i]) ~ as.matrix(train_set_iteration_2[j]) + as.matrix(train_set_iteration_2[k]), data=train_set_iteration_2)
           if (summary(res)$r.squared > 0.95 ){
             if (!i %in% listDescripteurs){
@@ -75,32 +77,22 @@ for (i in 2:nbDescripteurs){
     }
   }  
 }
-#### Utilisé avant
-#Deuxieme étape : Suppression des descripteurs inutiles
-#On affiche quels sont les descripteurs qui sont liées
-listDescripteurs <- c()
-for (i in names(train_set)){
-  if (i != "X__1"){
-    message("Pour le ", i)
-    for (j in names(train_set)){
-      if (i != j && j != "X__1"){
-        res = lm(as.matrix(train_set[i]) ~ as.matrix(train_set[j]), data=train_set)
-        if (summary(res)$r.squared > 0.95 ){
-            print(j)
-          listDescripteurs <- c(listDescripteurs, j)
-        }
-      }
-    }
 
-  }
-}
-listDescripteurs <- unique(listDescripteurs)
-train_set_1 <- train_set
-# On supprime les variables liées 
-for (i in listDescripteurs){
-  train_set_1[i] <-NULL
-}
-# Puis recommencer l'algo avec des relations à 2 variables, puisà  3
-## Apres cette étape on aura 10, 15 variables éliminées
+## Avec 3 variables on ne supprime aucune variable
+## Notre jeu de donnée est donc le suivant
+train_set_final = train_set_iteration_2
+test_set_final = test_set_iteration_2
+rm(test_set_iteration_1)
+rm(test_set_iteration_2)
+rm(train_set_iteration_1)
+rm(train_set_iteration_2)
 
-###ZONE DE TEST
+#NOTE : On utilise pas factor car toutes les variables sont continues
+library("MASS")
+#On utilise la regression stepwise pour determiner un modéle par selection de variable
+#Comme dans le TP, on fait soit par l'AIC, soit par le BIC
+##TODO
+# modAIC = stepAIC(X ,~., trace=TRUE, direction=c("both))
+# modBIC = stepAIC(X ,~., trace=TRUE, direction=c("both), k=log(tailleDeLaMatriceAevaluer))
+# Faire un summary de chaque modele , et trouver celui qui est le plus interessant
+# Faire le predict puis ???

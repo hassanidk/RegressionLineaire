@@ -7,14 +7,12 @@ train_set <- read_excel("data/FW_groupe2.xls")
 test_set <- read_excel("data/FW_groupe2_obs.xls")
 
 #Premiere étape : Suppression les observations contenant des valeurs manquantes
-##Apparament aucune valeur vide ? Pas sur fais gaffe
-### CF réponse Mail
+## Aucune valeur vide, mais vérifier | Vérifier mail
 
-## Deuxieme étape, on cherche les relations linéaire à 1 variable qui lient un regresseur
-## à un autre. On élimine ceux qui peuvent être prédit avec un rsquared > 0.95
+# Deuxieme étape, on cherche les relations linéaire à 1 variable qui lient un regresseur
+# à un autre. On élimine ceux qui peuvent être prédit avec un rsquared > 0.95
+
 nbDescripteurs = length(train_set) 
-
-
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
     for (j in (i+1):nbDescripteurs){
@@ -28,14 +26,18 @@ for (i in 2:nbDescripteurs){
     }  
   }
 }
+listDescripteursTest = listDescripteurs+1
+### On modifie notre dataSet
+train_set_iteration_1 = train_set[, -listDescripteurs]
+test_set_iteration_1 = test_set[, -listDescripteursTest]
+nbDescripteurs = length(train_set_iteration_1)
+listDescripteurs <- c()
+listDescripteursTest <- c()
+
 ## Avec une variable on arrive à supprimmer 9 variables
 ## Troisieme étape, on cherche les relations linéaire à 2 variables. On effectue comme
 ## l'étape précédente
-### On modifie notre dataSet
-train_set_iteration_1 = train_set[, -listDescripteurs]
-test_set_iteration_1 = test_set[, -listDescripteurs]
-nbDescripteurs = length(train_set_iteration_1)
-listDescripteurs <- c()
+
 for (i in 2:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
@@ -48,19 +50,22 @@ for (i in 2:nbDescripteurs){
         }
       }
     }
-    
   }  
 }
 
-#Avec deux variables, on arrive à supprimer 11 variables
-## Troisieme étape, on cherche les relations linéaire à 3 variables. On effectue comme
-## l'étape précédente
+listDescripteursTest = listDescripteurs+1
 ### On modifie notre dataSet
 train_set_iteration_2 = train_set_iteration_1[, -listDescripteurs]
-test_set_iteration_2 = test_set_iteration_1[, -listDescripteurs]
+test_set_iteration_2 = test_set_iteration_1[, -listDescripteursTest]
 
 nbDescripteurs = length(train_set_iteration_2)
 listDescripteurs <- c()
+listDescripteursTest <- c()
+
+##Avec deux variables, on arrive à supprimer 11 variables
+## Troisieme étape, on cherche les relations linéaire à 3 variables. On effectue comme
+## l'étape précédente
+
 for (i in 2:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
@@ -82,16 +87,32 @@ for (i in 2:nbDescripteurs){
 ## Notre jeu de donnée est donc le suivant
 train_set_final = train_set_iteration_2
 test_set_final = test_set_iteration_2
+
+# On supprime toutes les variables temporaires
 rm(test_set_iteration_1)
 rm(test_set_iteration_2)
 rm(train_set_iteration_1)
 rm(train_set_iteration_2)
+rm(listDescripteurs)
+rm(listDescripteursTest)
 
-#NOTE : On utilise pas factor car toutes les variables sont continues
+#### NOTE : On utilise pas factor car toutes les variables sont continues
+#### TODO : IL FAUT DETECTER LES OUTLIERS
+
+# On utilise la regression stepwise pour determiner un modéle par selection de variable
 library("MASS")
-#On utilise la regression stepwise pour determiner un modéle par selection de variable
-#Comme dans le TP, on fait soit par l'AIC, soit par le BIC
 ##TODO
+X <- as.matrix(train_set_final[,-1])
+X[1:100, 2]
+lm(as.matrix(train_set_final[3]) ~ , data=train_set_final)
+modAIC = stepAIC(fit, direction="both")
+nbDescripteurs = length(train_set_final)
+for (i in 2:nbDescripteurs){
+  fit <- lm(as.matrix(train_set_final[i]) ~ ., data=train_set_final)
+  modAIC = stepAIC(fit, direction="both")
+  modBIC = stepAIC(fit, direction="both", k=log(100)) #Car 100 observation
+  modAIC$anova
+}
 # modAIC = stepAIC(X ,~., trace=TRUE, direction=c("both))
 # modBIC = stepAIC(X ,~., trace=TRUE, direction=c("both), k=log(tailleDeLaMatriceAevaluer))
 # Faire un summary de chaque modele , et trouver celui qui est le plus interessant

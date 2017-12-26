@@ -102,16 +102,24 @@ rm(listDescripteursTest)
 # On utilise la regression stepwise pour determiner un modéle par selection de variable
 library("MASS")
 ##TODO
-X <- as.matrix(train_set_final[,-1])
-X[1:100, 2]
-lm(as.matrix(train_set_final[3]) ~ , data=train_set_final)
-modAIC = stepAIC(fit, direction="both")
-nbDescripteurs = length(train_set_final)
+X <- as.matrix(test_set_final[,-1])
+Y <- as.matrix(test_set_final[2])
+
+
+nbDescripteurs = length(test_set_final)
 for (i in 2:nbDescripteurs){
-  fit <- lm(as.matrix(train_set_final[i]) ~ ., data=train_set_final)
-  modAIC = stepAIC(fit, direction="both")
-  modBIC = stepAIC(fit, direction="both", k=log(100)) #Car 100 observation
-  modAIC$anova
+  for (j in (i+1):nbDescripteurs){
+    for (k in (j+1):nbDescripteurs){
+      if (i<nbDescripteurs && j<nbDescripteurs && k<nbDescripteurs){
+        X1 = X[1:25, i]
+        X2 = X[1:25, j]
+        X3 = X[1:25, k]
+        fit <- lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3, data=test_set_final)
+        modAIC = stepAIC(fit, direction="both")
+        modBIC = stepAIC(fit, direction="both", k=log(25))        
+      }
+    }
+  }
 }
 # modAIC = stepAIC(X ,~., trace=TRUE, direction=c("both))
 # modBIC = stepAIC(X ,~., trace=TRUE, direction=c("both), k=log(tailleDeLaMatriceAevaluer))

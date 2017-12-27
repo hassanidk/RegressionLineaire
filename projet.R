@@ -101,26 +101,53 @@ rm(listDescripteursTest)
 
 # On utilise la regression stepwise pour determiner un modéle par selection de variable
 library("MASS")
+library("qpcR")
+# Explication de PRESS : https://www.rdocumentation.org/packages/qpcR/versions/1.4-0/topics/PRESS
 ##TODO
-X <- as.matrix(test_set_final[,-1])
+X <- as.matrix(test_set_final[,-1:-2])
 Y <- as.matrix(test_set_final[2])
+# On fixe le minPress à la valeur maximal d'un int
+minPress = 2147483647
+# Le nombre de descripteurs
+nbDescripteurs = length(test_set_final) - 2
+# On conserve uniquement les numéro de colonne au lieu d'un vecteur en entier
+# Permet d'optimiser l'utilisation des ressources
+variablesChoisies = c(0,0,0)
 
-
-nbDescripteurs = length(test_set_final)
-for (i in 2:nbDescripteurs){
+for (i in 3:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
       if (i<nbDescripteurs && j<nbDescripteurs && k<nbDescripteurs){
-        X1 = X[1:25, i]
-        X2 = X[1:25, j]
-        X3 = X[1:25, k]
-        fit <- lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3, data=test_set_final)
-        modAIC = stepAIC(fit, direction="both")
-        modBIC = stepAIC(fit, direction="both", k=log(25))        
+          X1 = X[1:25, i]
+          X2 = X[1:25, j]
+          X3 = X[1:25, k]
+
+          fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+          modAIC = stepAIC(fit, direction="forward", trace=FALSE)
+          psquareModel = PRESS(modAIC, verbose=FALSE)$P.square
+          # On conserve le modele qui a le PRESS le plus faible ainsi que les descripteurs
+          if(psquareModel < minPress){
+            minPress = psquareModel
+            modeleChoisie = modAIC
+            variablesChoisies = c(i, j, k)
+          }
+          #modBIC = stepAIC(fit, direction="both", k=log(25))        
+        
       }
     }
   }
 }
+
+## TEST :
+X1 = X[1:25, 4]
+X2 = X[1:25, 11]
+X3 = X[1:25, 12]
+## TODO une fonction de score à trouver !!!
+test = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+
+plot(Y, predict(modAIC))
+
+
 # modAIC = stepAIC(X ,~., trace=TRUE, direction=c("both))
 # modBIC = stepAIC(X ,~., trace=TRUE, direction=c("both), k=log(tailleDeLaMatriceAevaluer))
 # Faire un summary de chaque modele , et trouver celui qui est le plus interessant

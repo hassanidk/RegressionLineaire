@@ -100,9 +100,12 @@ rm(listDescripteursTest)
 #### TODO : IL FAUT DETECTER LES OUTLIERS
 
 # On utilise la regression stepwise pour determiner un modéle par selection de variable
+#install.packages('leaps')
 library("MASS")
 library("qpcR")
+library(leaps)
 # Explication de PRESS : https://www.rdocumentation.org/packages/qpcR/versions/1.4-0/topics/PRESS
+
 ##TODO
 X <- as.matrix(test_set_final[,-1:-2])
 Y <- as.matrix(test_set_final[2])
@@ -121,31 +124,53 @@ for (i in 3:nbDescripteurs){
           X1 = X[1:25, i]
           X2 = X[1:25, j]
           X3 = X[1:25, k]
-
+          #AIC pour descriptif, BIC pour predictif 
           fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
-          modAIC = stepAIC(fit, direction="forward", trace=FALSE)
+          ladReg = lad(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+          #modAIC = stepAIC(fit, direction="forward", trace=FALSE)
+          modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))    
           psquareModel = PRESS(modAIC, verbose=FALSE)$P.square
           # On conserve le modele qui a le PRESS le plus faible ainsi que les descripteurs
           if(psquareModel < minPress){
             minPress = psquareModel
-            modeleChoisie = modAIC
+            fitFinal = fit
+            ladFinal = ladReg
+            summary(testFinal)
+            modeleChoisie = modBIC
             variablesChoisies = c(i, j, k)
           }
-          #modBIC = stepAIC(fit, direction="both", k=log(25))        
-        
       }
     }
   }
 }
+library(Blossom)
+## Regreession Least absolute
+install.packages("Blossom")
 
-## TEST :
-X1 = X[1:25, 4]
-X2 = X[1:25, 11]
-X3 = X[1:25, 12]
-## TODO une fonction de score à trouver !!!
-test = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+## TEST 1: Comparaison de correlation Y et Ypredit des deux modeles
 
-plot(Y, predict(modAIC))
+cor(Y, predict(fitFinal))
+cor(Y, predict(ladFinal))
+
+## TEST 2 : Selection de variable via la fonction regsubsets
+## permet de donner le meilleur subseet pour n = 3
+# On remarque qu'on a des correlation à 80% contre 59% avec le truc du prof
+test = regsubsets(Y ~ as.matrix(test_set_final[,-1:-2]), data=test_set_final, nvmax=3)
+summary(test)$outmat
+
+X1 = X[1:25, 1]
+X2 = X[1:25, 5]
+X3 = X[1:25, 8]
+fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))
+fitted(modBIC)
+cor(Y, fitted(modBIC))
+## On obtient un score bien meilleur que les précédents
+
+cor(Y, fitted(modeleChoisie))
+plot(modeleChoisie, scale="r2")
+plot(Y, predict(modeleChoisie))
+plot(Y, predict(modBIC))
 
 
 # modAIC = stepAIC(X ,~., trace=TRUE, direction=c("both))

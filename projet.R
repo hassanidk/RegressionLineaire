@@ -16,7 +16,7 @@ nbDescripteurs = length(train_set)
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
     for (j in (i+1):nbDescripteurs){
-      if (j < nbDescripteurs){
+      if (i<=nbDescripteurs && j <=nbDescripteurs){
         res = lm(as.matrix(train_set[i]) ~ as.matrix(train_set[j]), data=train_set)
         if (summary(res)$r.squared > 0.95 ){
           if (!(i %in% listDescripteurs)){
@@ -34,14 +34,14 @@ nbDescripteurs = length(train_set_iteration_1)
 listDescripteurs <- c()
 listDescripteursTest <- c()
 
-## Avec une variable on arrive à supprimmer 9 variables
+## Avec une variable on arrive à supprimmer 9 variables UPDATE : 10
 ## Troisieme étape, on cherche les relations linéaire à 2 variables. On effectue comme
 ## l'étape précédente
 
 for (i in 2:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
-      if (j < nbDescripteurs && k< nbDescripteurs){
+      if (i <= nbDescripteurs && j <= nbDescripteurs && k<= nbDescripteurs){
         res = lm(as.matrix(train_set_iteration_1[i]) ~ as.matrix(train_set_iteration_1[j]) + as.matrix(train_set_iteration_1[k]), data=train_set_iteration_1)
         if (summary(res)$r.squared > 0.95 ){
           if (!i %in% listDescripteurs){
@@ -62,7 +62,7 @@ nbDescripteurs = length(train_set_iteration_2)
 listDescripteurs <- c()
 listDescripteursTest <- c()
 
-##Avec deux variables, on arrive à supprimer 11 variables
+##Avec deux variables, on arrive à supprimer 11 variables UPDATE 12
 ## Troisieme étape, on cherche les relations linéaire à 3 variables. On effectue comme
 ## l'étape précédente
 
@@ -70,8 +70,8 @@ for (i in 2:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
       for (l in (k+1):nbDescripteurs){
-        if (j<nbDescripteurs && k<nbDescripteurs && l < nbDescripteurs){
-          res = lm(as.matrix(train_set_iteration_2[i]) ~ as.matrix(train_set_iteration_2[j]) + as.matrix(train_set_iteration_2[k]), data=train_set_iteration_2)
+        if (i <= nbDescripteurs &&j <= nbDescripteurs && k<= nbDescripteurs && l <= nbDescripteurs){
+          res = lm(as.matrix(train_set_iteration_2[i]) ~ as.matrix(train_set_iteration_2[j]) + as.matrix(train_set_iteration_2[k]) +  as.matrix(train_set_iteration_2[l]), data=train_set_iteration_2)
           if (summary(res)$r.squared > 0.95 ){
             if (!i %in% listDescripteurs){
               listDescripteurs <- c(listDescripteurs, i)
@@ -85,16 +85,19 @@ for (i in 2:nbDescripteurs){
 
 ## Avec 3 variables on ne supprime aucune variable
 ## Notre jeu de donnée est donc le suivant
-train_set_final = train_set_iteration_2
-test_set_final = test_set_iteration_2
+#train_set_final = train_set_iteration_2
+#test_set_final = test_set_iteration_2
 
+##UPDATE En mettant <= on retire en tout 25 variables
+listDescripteursTest = listDescripteurs+1
+### On modifie notre dataSet
+train_set_final = train_set_iteration_2[, -listDescripteurs]
+test_set_final = test_set_iteration_2[, -listDescripteursTest]
 # On supprime toutes les variables temporaires
-rm(test_set_iteration_1)
-rm(test_set_iteration_2)
-rm(train_set_iteration_1)
-rm(train_set_iteration_2)
-rm(listDescripteurs)
-rm(listDescripteursTest)
+rm(test_set_iteration_1, test_set_iteration_2)
+rm(train_set_iteration_1, train_set_iteration_2)
+rm(listDescripteurs, listDescripteursTest)
+rm(i,j,k,l,nbDescripteurs, res)
 
 #### NOTE : On utilise pas factor car toutes les variables sont continues
 #### TODO : IL FAUT DETECTER LES OUTLIERS
@@ -117,27 +120,30 @@ nbDescripteurs = length(test_set_final) - 2
 # Permet d'optimiser l'utilisation des ressources
 variablesChoisies = c(0,0,0)
 
-for (i in 3:nbDescripteurs){
+for (i in 1:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
     for (k in (j+1):nbDescripteurs){
-      if (i<nbDescripteurs && j<nbDescripteurs && k<nbDescripteurs){
+      if (i<=nbDescripteurs && j<=nbDescripteurs && k<=nbDescripteurs){
           X1 = X[1:25, i]
           X2 = X[1:25, j]
           X3 = X[1:25, k]
           #AIC pour descriptif, BIC pour predictif 
+          
           fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+          
           ladReg = lad(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
-          #modAIC = stepAIC(fit, direction="forward", trace=FALSE)
-          modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))    
-          psquareModel = PRESS(modAIC, verbose=FALSE)$P.square
-          # On conserve le modele qui a le PRESS le plus faible ainsi que les descripteurs
-          if(psquareModel < minPress){
-            minPress = psquareModel
-            fitFinal = fit
-            ladFinal = ladReg
-            summary(testFinal)
-            modeleChoisie = modBIC
-            variablesChoisies = c(i, j, k)
+          modAIC = stepAIC(fit, direction="both", trace=FALSE)
+          #modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))    
+          if(length(modAIC$coefficients) > 1){
+            
+            psquareModel = PRESS(modAIC, verbose=FALSE)$P.square
+            # On conserve le modele qui a le PRESS le plus faible ainsi que les descripteurs
+            if(psquareModel < minPress){
+              minPress = psquareModel
+              ladFinal = ladReg
+              modeleChoisie = modAIC
+              variablesChoisies = c(i, j, k)
+            }
           }
       }
     }
@@ -147,17 +153,16 @@ library(Blossom)
 ## Regreession Least absolute
 install.packages("Blossom")
 
-## TEST 1: Comparaison de correlation Y et Ypredit des deux modeles
 
-cor(Y, predict(fitFinal))
-cor(Y, predict(ladFinal))
 
-## TEST 2 : Selection de variable via la fonction regsubsets
-## permet de donner le meilleur subseet pour n = 3
-# On remarque qu'on a des correlation à 80% contre 59% avec le truc du prof
+## TEST 1 : Selection de variable via la fonction regsubsets
+## permet de donner le meilleur subseet pour n = 3. Evite les diffférentes boucles
 test = regsubsets(Y ~ as.matrix(test_set_final[,-1:-2]), data=test_set_final, nvmax=3)
 summary(test)$outmat
 
+#On remarque que nous avons pas les mêmes variables.
+# En effet cette fonction utilise les descripteurs 1, 14 et 19
+# Nous utilisons les descripteurs 1, 8, et 22
 X1 = X[1:25, 1]
 X2 = X[1:25, 5]
 X3 = X[1:25, 8]
@@ -165,8 +170,19 @@ fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
 modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))
 fitted(modBIC)
 cor(Y, fitted(modBIC))
-## On obtient un score bien meilleur que les précédents
 
+# On remarque que via la fonction regsubset, on obtient un score de 82%
+# Nous obtenons un score de 76% 
+
+## TEST 2: Comparaison de correlation Y et Ypredit des deux modeles
+
+cor(Y, fitted(modeleChoisie))
+cor(Y, predict(ladFinal))
+
+# Stepwise est sensible aux outliers contrairement à least absolute
+# L'idée est donc de supprimer manuellement les outliers pour essayé d'améliorer le score
+
+### TODO
 cor(Y, fitted(modeleChoisie))
 plot(modeleChoisie, scale="r2")
 plot(Y, predict(modeleChoisie))

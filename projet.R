@@ -7,8 +7,11 @@ test_set <- read_excel("data/FW_groupe2.xls")
 train_set <- read_excel("data/FW_groupe2_obs.xls")
 
 #Premiere étape : Suppression les observations contenant des valeurs manquantes
-## Aucune valeur vide, mais vérifier | Vérifier mail
-
+missing_value_row = sort(which(test_set==0, TRUE)[,1])
+# On remarque que le lignes 10, 11, 13, 25, 26, 48, 70 et 71 ont plusieurs valeurs manquantes
+# On supprime ces lignes du dataset
+test_set = test_set[-missing_value_row,]
+rm(missing_value_row)
 # Deuxieme étape, on cherche les relations linéaire à 1 variable qui lient un regresseur
 # à un autre. On élimine ceux qui peuvent être prédit avec un rsquared > 0.95
 
@@ -26,15 +29,17 @@ for (i in 2:nbDescripteurs){
     }  
   }
 }
+## On modifie notre dataSet
+# On utilise deux vecteurs de descripteur, car dans le jeu de donnée Test, il y a une colonne supplémentaire
+# Cela provoque un décalage
 listDescripteursTest = listDescripteurs+1
-### On modifie notre dataSet
 test_set_iteration_1 = test_set[, -listDescripteurs]
 train_set_iteration_1 = train_set[, -listDescripteursTest]
 nbDescripteurs = length(test_set_iteration_1)
 listDescripteurs <- c()
 listDescripteursTest <- c()
 
-## Avec une variable on arrive à supprimmer 9 variables UPDATE : 10
+## Avec une variable on arrive à supprimmer 10 variables
 ## Troisieme étape, on cherche les relations linéaire à 2 variables. On effectue comme
 ## l'étape précédente
 
@@ -52,17 +57,16 @@ for (i in 2:nbDescripteurs){
     }
   }  
 }
+## On modifie notre dataSet
 
 listDescripteursTest = listDescripteurs+1
-### On modifie notre dataSet
 test_set_iteration_2 = test_set_iteration_1[, -listDescripteurs]
 train_set_iteration_2 = train_set_iteration_1[, -listDescripteursTest]
-
 nbDescripteurs = length(test_set_iteration_2)
 listDescripteurs <- c()
 listDescripteursTest <- c()
 
-##Avec deux variables, on arrive à supprimer 11 variables UPDATE 12
+##Avec deux variables, on arrive à supprimer 13 variables 
 ## Troisieme étape, on cherche les relations linéaire à 3 variables. On effectue comme
 ## l'étape précédente
 
@@ -83,16 +87,14 @@ for (i in 2:nbDescripteurs){
   }  
 }
 
-## Avec 3 variables on ne supprime aucune variable
-## Notre jeu de donnée est donc le suivant
-#test_set_final = test_set_iteration_2
-#train_set_final = train_set_iteration_2
+## Avec 3 variables on ne supprime 3 variables
+## On retire en tout 26 variables
 
-##UPDATE En mettant <= on retire en tout 25 variables
-listDescripteursTest = listDescripteurs+1
 ### On modifie notre dataSet
+listDescripteursTest = listDescripteurs+1
 test_set_final = test_set_iteration_2[, -listDescripteurs]
 train_set_final = train_set_iteration_2[, -listDescripteursTest]
+
 # On supprime toutes les variables temporaires
 rm(train_set_iteration_1, train_set_iteration_2)
 rm(test_set_iteration_1, test_set_iteration_2)
@@ -100,7 +102,6 @@ rm(listDescripteurs, listDescripteursTest)
 rm(i,j,k,l,nbDescripteurs, res)
 
 #### NOTE : On utilise pas factor car toutes les variables sont continues
-#### TODO : IL FAUT DETECTER LES OUTLIERS
 
 # On utilise la regression stepwise pour determiner un modéle par selection de variable
 library("MASS")
@@ -108,7 +109,7 @@ library("qpcR")
 
 # Explication de PRESS : https://www.rdocumentation.org/packages/qpcR/versions/1.4-0/topics/PRESS
 
-##TODO
+
 X <- as.matrix(train_set_final[,-1:-2])
 Y <- as.matrix(train_set_final[2])
 # On fixe le minPress à la valeur maximal d'un int
@@ -119,8 +120,13 @@ nbDescripteurs = length(train_set_final) - 2
 # Permet d'optimiser l'utilisation des ressources
 variablesChoisies = c(0,0,0)
 
-## Regreession Least absolute
-#install.packages("Blossom")
+## Regreession Least absolute : On  ne sait pas sur quel modèle se baser pour l'effectuer
+## Se baser comme sur la question 2 par rapport au PRESS ?
+## Se baser sur un autre critère ?
+## Nous avons décider de selectionner le modéle qui prédit au mieux ce jeu de donné train
+## Cela ammène à quelques problèmes (Sur apprentissage)
+## install.packages("Blossom")
+
 library(Blossom)
 bestScoreLad = 0
 varLad = c(0,0,0)
@@ -137,7 +143,8 @@ for (i in 1:nbDescripteurs){
           
           ladReg = lad(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
           scoreLad = cor(Y, predict(ladReg))
-          #TODO ; Verifier qu'il n'y a pas surapprentissage
+          # Méthode qui se base sur un score de correlation
+          # Pas très optimisé
           if (scoreLad > bestScoreLad){
             bestScoreLad = scoreLad
             ladFinal = ladReg
@@ -161,21 +168,11 @@ for (i in 1:nbDescripteurs){
 }
 
 
+# Qu'on supprime les lignes contenant les valeurs nulles au début de l'analyse ou pas, nous obtenons les mêmes variables
+# Cependant, on supprime une variable en plus lorsqu'on s'occupe des valeurs nulles
 
-
-## TEST 1 : Selection de variable via la fonction regsubsets
-## permet de donner le meilleur subseet pour n = 3. Evite les diffférentes boucles
-# On utilise la librairie leaps
-#install.packages('leaps')
-## TODO : Pour le rapport expliquer ce que fait cette fonction (Petit bonus)
-library(leaps)
-test = regsubsets(Y ~ as.matrix(train_set_final[,-1:-2]), data=train_set_final, nvmax=3)
-summary(test)$outmat
-
-#On remarque que nous avons pas les mêmes variables.
-# En effet cette fonction utilise les descripteurs 1, 14 et 19
-# Nous utilisons les descripteurs 1, 8, et 22 si on utilise l'AIC
-# Nous utilisons les descripteurs 1 4 9 si on utilise le BIC
+# Nous utilisons les descripteurs 1 4 9 si on utilise le critère BIC
+# Notre modèle choisie ce base donc sur ces descripteurs
 
 
 #TEST 2: Comparaison modele (Stepwise vs LAD)
@@ -183,9 +180,8 @@ summary(test)$outmat
 cor(Y, fitted(modeleChoisie))
 cor(Y, predict(ladFinal))
 # Nous obtenons un score de 76% que ce soit avec l'AIC ou le BIC
-# LAD 72% lorsqu'on faisait par rappart à PRESS, maintenant à 91% quand on cherche tout simplement
-# à gonfler notre score. TODO est ce une bonne méthode ?
-# BONUS : On remarque que via la fonction regsubset, on obtient un score de 82%
+# LAD 72% lorsqu'on faisait par rappart à PRESS, maintenant à 91% 
+# si on se se base sur les descripteurs qui prédisent au mieux les données du jeu d'entrainement
 
 # Stepwise est sensible aux outliers contrairement à least absolute
 # L'idée est donc de supprimer manuellement les outliers pour essayé d'améliorer le score
@@ -217,10 +213,19 @@ fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
 modeleChoisie= stepAIC(fit, direction="both", trace=FALSE, k=log(25))
 cor(Y, predict(modeleChoisie))
 boxplot(predict(modeleChoisie))
-#Le score augmente de 1 point, mais apparation encore d'un outlier
+# Le score augmente de 1 point, mais apparation encore d'un outlier
 # On pense que ça ne sert à rien de continuer, le modèle est trop sensible
 # car on supprime à chaque itération des variables. De plus, notre score augmente
 # trop peu.
 
-# TODO : Peut être essayer de supprimer les variables pour essayé d'améliorer LAD
-# Test sur le jeu de test et effectuer un boxplot pour voir ?
+
+## TEST BONUS : Selection de variable via la fonction regsubsets
+## permet de donner le meilleur subseet pour n = 3. Evite les diffférentes boucles
+## On utilise la librairie leaps. Expliquer en détail ce que fait ce bonus
+## sur quel test, critère il se base pour detecter les variables
+## install.packages('leaps')
+## TODO : Pour le rapport expliquer ce que fait cette fonction (Petit bonus)
+library(leaps)
+test = regsubsets(Y ~ as.matrix(train_set_final[,-1:-2]), data=train_set_final, nvmax=3)
+summary(test)$outmat
+

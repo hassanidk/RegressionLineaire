@@ -14,7 +14,6 @@ test_set = test_set[-missing_value_row,]
 rm(missing_value_row)
 # Deuxieme étape, on cherche les relations linéaire à 1 variable qui lient un regresseur
 # à un autre. On élimine ceux qui peuvent être prédit avec un rsquared > 0.95
-
 nbDescripteurs = length(test_set) 
 listDescripteurs <- c()
 for (i in 2:nbDescripteurs){
@@ -128,7 +127,7 @@ variablesChoisies = c(0,0,0)
 ## install.packages("Blossom")
 
 library(Blossom)
-bestScoreLad = 0
+minScoreLad = 2147483647
 varLad = c(0,0,0)
 for (i in 1:nbDescripteurs){
   for (j in (i+1):nbDescripteurs){
@@ -140,13 +139,13 @@ for (i in 1:nbDescripteurs){
           #AIC pour descriptif, BIC pour predictif 
           
           fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
-          
+          #Reg L1
           ladReg = lad(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
-          scoreLad = cor(Y, predict(ladReg))
-          # Méthode qui se base sur un score de correlation
-          # Pas très optimisé
-          if (scoreLad > bestScoreLad){
-            bestScoreLad = scoreLad
+          # On cherche à avoir le modele qui minimise la valeur absolue de la somme des erreurs
+          # résiduels
+          scoreLad = sum(abs(residuals(ladReg)))
+          if (scoreLad < minScoreLad){
+            minScoreLad = scoreLad
             ladFinal = ladReg
             varLad = c(i, j, k)
           }
@@ -154,11 +153,12 @@ for (i in 1:nbDescripteurs){
           modBIC = stepAIC(fit, direction="both", trace=FALSE, k=log(25))    
           if(length(modBIC$coefficients) > 1){
             
-            psquareModel = PRESS(modBIC, verbose=FALSE)$P.square
+            pressValue = PRESS(modBIC, verbose=FALSE)$stat
             # On conserve le modele qui a le PRESS le plus faible ainsi que les descripteurs
-            if(psquareModel < minPress){
-              minPress = psquareModel
+            if(pressValue < minPress){
+              minPress = pressValue
               modeleChoisie = modBIC
+              regChoisie = fit
               variablesChoisies = c(i, j, k)
             }
           }
@@ -167,11 +167,10 @@ for (i in 1:nbDescripteurs){
   }
 }
 
-
 # Qu'on supprime les lignes contenant les valeurs nulles au début de l'analyse ou pas, nous obtenons les mêmes variables
 # Cependant, on supprime une variable en plus lorsqu'on s'occupe des valeurs nulles
 
-# Nous utilisons les descripteurs 1 4 9 si on utilise le critère BIC
+# Nous utilisons les descripteurs 1 4 8 si on utilise le critère BIC
 # Notre modèle choisie ce base donc sur ces descripteurs
 
 
@@ -179,8 +178,13 @@ for (i in 1:nbDescripteurs){
 
 cor(Y, fitted(modeleChoisie))
 cor(Y, predict(ladFinal))
-# Nous obtenons un score de 76% que ce soit avec l'AIC ou le BIC
-# LAD 72% lorsqu'on faisait par rappart à PRESS, maintenant à 91% 
+
+plot(Y, predict(ladFinal))
+plot(Y, predict(modeleChoisie))
+
+scatter.smooth(Y, predict(ladFinal))
+# Nous obtenons un score de 91.4% que ce soit avec l'AIC ou le BIC
+# LAD 72% lorsqu'on faisait par rappart à PRESS, maintenant à 91.1% 
 # si on se se base sur les descripteurs qui prédisent au mieux les données du jeu d'entrainement
 
 # Stepwise est sensible aux outliers contrairement à least absolute

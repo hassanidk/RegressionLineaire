@@ -122,8 +122,7 @@ variablesChoisies = c(0,0,0)
 ## Regreession Least absolute : On  ne sait pas sur quel modèle se baser pour l'effectuer
 ## Se baser comme sur la question 2 par rapport au PRESS ?
 ## Se baser sur un autre critère ?
-## Nous avons décider de selectionner le modéle qui prédit au mieux ce jeu de donné train
-## Cela ammène à quelques problèmes (Sur apprentissage)
+## UPDATE : Maximum de vraissemblance, cf statistiques inférentielles
 ## install.packages("Blossom")
 
 library(Blossom)
@@ -140,7 +139,7 @@ for (i in 1:nbDescripteurs){
           
           fit = lm(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
           #Reg L1
-          ladReg = lad(Y ~ X1 + X2 + X3 + X1 * X2 + X1 * X3 + X2 * X3)
+          ladReg = lad(fit)
           # On cherche à avoir le modele qui minimise la valeur absolue de la somme des erreurs
           # résiduels
           scoreLad = sum(abs(residuals(ladReg)))
@@ -173,14 +172,22 @@ for (i in 1:nbDescripteurs){
 # Nous utilisons les descripteurs 1 4 8 si on utilise le critère BIC
 # Notre modèle choisie ce base donc sur ces descripteurs
 
-
 #TEST 2: Comparaison modele (Stepwise vs LAD)
 
 cor(Y, fitted(modeleChoisie))
 cor(Y, predict(ladFinal))
 
 plot(Y, predict(ladFinal))
-plot(Y, predict(modeleChoisie))
+
+
+plot(Y, predict(modeleChoisie) )
+title("Stepwise Regression")
+abline(lm(X1 ~ X2))
+
+plot(Y, predict(ladFinal) )
+title("LAD Regression")
+abline(0,1)
+
 
 scatter.smooth(Y, predict(ladFinal))
 # Nous obtenons un score de 91.4% que ce soit avec l'AIC ou le BIC
@@ -190,12 +197,15 @@ scatter.smooth(Y, predict(ladFinal))
 # Stepwise est sensible aux outliers contrairement à least absolute
 # L'idée est donc de supprimer manuellement les outliers pour essayé d'améliorer le score
 
-### TODO
+### UPDATE : Il es possible qu'on ne supprime plus les bons outliers
+### En effet, nous avons corrigé notre modéle et l'on utilise pour X3 la 8eme colonne du jeu de
+### donnée au lieu de la 9eme
 X1 = X[1:25, 1]
 X2 = X[1:25, 4]
-X3 = X[1:25, 9]
+X3 = X[1:25, 8]
 plot(Y, predict(modeleChoisie))
 boxplot(predict(modeleChoisie))$out
+title("Boxplot des valeurs prédites")
 #On supprime la 24 observation du jeu de donnée de train
 X1 = X1[-24]
 X2 = X2[-24]
@@ -228,7 +238,9 @@ boxplot(predict(modeleChoisie))
 ## On utilise la librairie leaps. Expliquer en détail ce que fait ce bonus
 ## sur quel test, critère il se base pour detecter les variables
 ## install.packages('leaps')
-## TODO : Pour le rapport expliquer ce que fait cette fonction (Petit bonus)
+## TODO : Pour le rapport expliquer ce que fait cette fonction (Petit bonus si le temps le 
+## permet)
+
 library(leaps)
 test = regsubsets(Y ~ as.matrix(train_set_final[,-1:-2]), data=train_set_final, nvmax=3)
 summary(test)$outmat
